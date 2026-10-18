@@ -1,0 +1,29 @@
+# Local stack.
+#   docker compose up --build                          -> offline demo (mock LLM, in-memory data)
+#   docker compose --profile firestore up --build      -> + Firestore emulator (DATA_BACKEND=firestore)
+# Values in .env override the defaults below (cp .env.example .env).
+services:
+  caseforge:
+    build: .
+    ports: ["8080:8080"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LLM_MODE: ${LLM_MODE:-mock}
+      DATA_BACKEND: ${DATA_BACKEND:-memory}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-caseforge-local}
+      # For the emulator profile put FIRESTORE_EMULATOR_HOST=firestore:8085 and
+      # DATA_BACKEND=firestore in .env (do not leave it set-but-empty).
+    # Your gcloud Application Default Credentials (gcloud auth application-default login)
+    # are mounted read-only so LLM_MODE=vertex / Cloud STT / TTS work from your laptop.
+    volumes:
+      - ${HOME}/.config/gcloud:/home/caseforge/.config/gcloud:ro
+    restart: unless-stopped
+
+  firestore:
+    profiles: ["firestore"]
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8085
+    ports: ["8085:8085"]
